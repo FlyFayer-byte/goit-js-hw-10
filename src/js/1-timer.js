@@ -2,6 +2,9 @@
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
+import iziToast from 'izitoast';
+import 'izitoast/dist/css/iziToast.min.css';
+
 const refs = {
   input: document.querySelector('#datetime-picker'),
   startBtn: document.querySelector('[data-start]'),
@@ -11,12 +14,13 @@ const refs = {
   seconds: document.querySelector('[data-seconds]'),
 };
 
+// Початковий стан
 refs.startBtn.disabled = true;
 
-let selectedTime = null;
+let userSelectedDate = null; // дата, обрана користувачем (ms)
 let timerId = null;
 
-// 1) ініціалізація flatpickr
+// --- Flatpickr ---
 flatpickr(refs.input, {
   enableTime: true,
   time_24hr: true,
@@ -24,36 +28,43 @@ flatpickr(refs.input, {
   minuteIncrement: 1,
   onClose(selectedDates) {
     const date = selectedDates[0];
-    if (!date) return;
-    if (date.getTime() <= Date.now()) {
+    if (!date || date.getTime() <= Date.now()) {
+      // невалідна дата → блокуємо старт і показуємо тост
+      userSelectedDate = null;
       refs.startBtn.disabled = true;
-      alert('Please choose a date in the future');
+      iziToast.error({
+        message: 'Please choose a date in the future',
+        position: 'topRight',
+        timeout: 3000,
+      });
       return;
     }
-    selectedTime = date.getTime();
+    // валідна дата → зберігаємо й розблоковуємо кнопку
+    userSelectedDate = date.getTime();
     refs.startBtn.disabled = false;
   },
 });
 
-// 2) запуск відліку
+// --- Запуск таймера ---
 refs.startBtn.addEventListener('click', () => {
-  if (!selectedTime) return;
+  if (!userSelectedDate) return;
 
-  refs.startBtn.disabled = true;
-  refs.input.disabled = true;
+  refs.startBtn.disabled = true; // не даємо запустити ще раз
+  refs.input.disabled = true;    // блокуємо вибір нової дати
 
-  tick(); // одразу показати перший розрахунок
+  tick();                        // перший апдейт одразу
   timerId = setInterval(tick, 1000);
 });
 
 function tick() {
-  const ms = selectedTime - Date.now();
+  const ms = userSelectedDate - Date.now();
 
   if (ms <= 0) {
     clearInterval(timerId);
     timerId = null;
     setClock(0, 0, 0, 0);
-    refs.input.disabled = false;
+    refs.input.disabled = false;   // можна обрати наступну дату
+    // Кнопка Start лишається неактивною, доки не оберуть нову валідну дату
     return;
   }
 
@@ -61,22 +72,29 @@ function tick() {
   setClock(days, hours, minutes, seconds);
 }
 
+// Форматуємо відображення часу
 function setClock(d, h, m, s) {
-  refs.days.textContent = String(d).padStart(2, '0');
-  refs.hours.textContent = String(h).padStart(2, '0');
-  refs.minutes.textContent = String(m).padStart(2, '0');
-  refs.seconds.textContent = String(s).padStart(2, '0');
+  refs.days.textContent = addLeadingZero(d);    // дні можуть бути >2 цифр — padStart їх не псує
+  refs.hours.textContent = addLeadingZero(h);
+  refs.minutes.textContent = addLeadingZero(m);
+  refs.seconds.textContent = addLeadingZero(s);
 }
 
+function addLeadingZero(value) {
+  return String(value).padStart(2, '0');
+}
+
+// Готова функція конвертації з ТЗ
 function convertMs(ms) {
-  const sec = 1000;
-  const min = sec * 60;
-  const hour = min * 60;
+  const second = 1000;
+  const minute = second * 60;
+  const hour = minute * 60;
   const day = hour * 24;
 
   const days = Math.floor(ms / day);
   const hours = Math.floor((ms % day) / hour);
-  const minutes = Math.floor((ms % hour) / min);
-  const seconds = Math.floor((ms % min) / sec);
+  const minutes = Math.floor((ms % hour) / minute);
+  const seconds = Math.floor((ms % minute) / second);
+
   return { days, hours, minutes, seconds };
 }
