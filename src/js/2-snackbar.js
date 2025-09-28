@@ -1,18 +1,32 @@
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 
+iziToast.settings({
+  position: 'topRight',
+  timeout: 3000,
+  closeOnClick: true,
+  progressBar: false,
+  maxWidth: 420,
+  transitionIn: 'fadeInDown',
+  transitionOut: 'fadeOutUp',
+});
+
 const form = document.querySelector('.form');
 
 form.addEventListener('submit', e => {
   e.preventDefault();
 
-  const delayStr = e.currentTarget.elements.delay.value.trim();
-  const state = e.currentTarget.elements.state.value; // 'fulfilled' | 'rejected'
+  const delayStr = form.elements.delay.value.trim();
   const delay = Number(delayStr);
+  const state = form.elements.state.value; // 'fulfilled' | 'rejected'
 
-  // Проста валідація (HTML already requires + min=0)
+
   if (!Number.isFinite(delay) || delay < 0) {
-    iziToast.error({ message: 'Enter a non-negative delay (ms)', position: 'topRight' });
+    iziToast.error({ message: 'Enter a non-negative delay (ms)' });
+    return;
+  }
+  if (state !== 'fulfilled' && state !== 'rejected') {
+    iziToast.error({ message: 'Choose promise state' });
     return;
   }
 
@@ -20,22 +34,20 @@ form.addEventListener('submit', e => {
     .then(ms => {
       iziToast.success({
         message: `✅ Fulfilled promise in ${ms}ms`,
-        position: 'topRight',
       });
     })
     .catch(ms => {
       iziToast.error({
         message: `❌ Rejected promise in ${ms}ms`,
-        position: 'topRight',
       });
     });
 });
 
+// Створює проміс, що виконається або відхилиться через delay мс
 function createPromise(delay, shouldResolve) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      if (shouldResolve) resolve(delay);
-      else reject(delay);
+      shouldResolve ? resolve(delay) : reject(delay);
     }, delay);
   });
 }
